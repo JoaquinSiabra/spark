@@ -34,16 +34,19 @@ public class QueryParamsMap {
     private static final QueryParamsMap NULL = new NullQueryParamsMap();
 
     /**
+     * Pattern for parsing the key of querystring
+     */
+    private static final Pattern KEY_PATTERN = Pattern.compile("\\A[\\[\\]]*([^\\[\\]]+)\\]*");
+
+    /**
      * Holds the nested keys
      */
-    private Map<String, QueryParamsMap> queryMap = new HashMap<String, QueryParamsMap>();
+    private Map<String, QueryParamsMap> queryMap = new HashMap<>();
 
     /**
      * Value(s) for this key
      */
     private String[] values;
-
-    private Pattern p = Pattern.compile("\\A[\\[\\]]*([^\\[\\]]+)\\]*");
 
     /**
      * Creates a new QueryParamsMap from and HttpServletRequest. <br>
@@ -121,7 +124,7 @@ public class QueryParamsMap {
     }
 
     protected final String[] parseKey(String key) {
-        Matcher m = p.matcher(key);
+        Matcher m = KEY_PATTERN.matcher(key);
 
         if (m.find()) {
             return new String[] {cleanKey(m.group()), key.substring(m.end())};
@@ -139,7 +142,7 @@ public class QueryParamsMap {
     }
 
     /**
-     * Retruns and element fro the specified key. <br>
+     * Returns an element from the specified key. <br>
      * For querystring: <br>
      * <br>
      * user[name]=fede
@@ -201,6 +204,13 @@ public class QueryParamsMap {
      */
     public boolean hasKeys() {
         return !this.queryMap.isEmpty();
+    }
+
+    /**
+     * @return true if the map contains the given key
+     */
+    public boolean hasKey(String key) {
+    	return this.queryMap.containsKey( key );
     }
 
     /**
@@ -277,7 +287,7 @@ public class QueryParamsMap {
      * @return Map representation
      */
     public Map<String, String[]> toMap() {
-        Map<String, String[]> map = new HashMap<String, String[]>();
+        Map<String, String[]> map = new HashMap<>();
 
         for (Entry<String, QueryParamsMap> key : this.queryMap.entrySet()) {
             map.put(key.getKey(), key.getValue().values);

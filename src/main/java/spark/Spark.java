@@ -16,6 +16,10 @@
  */
 package spark;
 
+import java.util.function.Consumer;
+
+import static spark.Service.ignite;
+
 /**
  * The main building block of a Spark application is a set of routes. A route is
  * made up of three simple pieces:
@@ -28,27 +32,57 @@ package spark;
  * get("/hello", (request, response) -&#62; {
  * return "Hello World!";
  * });
+ * The public methods and fields in this class should be statically imported for the semantic to make sense.
+ * Ie. one should use:
+ * 'post("/books")' without the prefix 'Spark.'
  *
  * @author Per Wendel
  */
-public final class Spark {
-    private static SparkInstance instance;
+public class Spark {
 
     // Hide constructor
-    private Spark() {
+    protected Spark() {
     }
 
     /**
      * Initializes singleton.
      */
     private static class SingletonHolder {
-        private static final SparkInstance INSTANCE = new SparkInstance();
+        private static final Service INSTANCE = ignite();
     }
 
-    public static SparkInstance getInstance() {
+    private static Service getInstance() {
         return SingletonHolder.INSTANCE;
     }
 
+    /**
+     * Statically import this for redirect utility functionality, see {@link spark.Redirect}
+     */
+    public static final Redirect redirect = getInstance().redirect;
+
+    /**
+     * Statically import this for static files utility functionality, see {@link spark.Service.StaticFiles}
+     */
+    public static final Service.StaticFiles staticFiles = getInstance().staticFiles;
+
+    /**
+     * Add a path-prefix to the routes declared in the routeGroup
+     * The path() method adds a path-fragment to a path-stack, adds
+     * routes from the routeGroup, then pops the path-fragment again.
+     * It's used for separating routes into groups, for example:
+     * path("/api/email", () -> {
+     * ....post("/add",       EmailApi::addEmail);
+     * ....put("/change",     EmailApi::changeEmail);
+     * ....etc
+     * });
+     * Multiple path() calls can be nested.
+     *
+     * @param path       the path to prefix routes with
+     * @param routeGroup group of routes (can also contain path() calls)
+     */
+    public static void path(String path, RouteGroup routeGroup) {
+        getInstance().path(path, routeGroup);
+    }
 
     /**
      * Map the route for HTTP GET requests
@@ -151,6 +185,19 @@ public final class Spark {
     }
 
     /**
+     * Maps an array of filters to be executed before any matching routes
+     *
+     * @param path    the path
+     * @param filters the filters
+     */
+
+    public static void before(String path, Filter... filters) {
+        for (Filter filter : filters) {
+            getInstance().before(path, filter);
+        }
+    }
+
+    /**
      * Maps a filter to be executed after any matching routes
      *
      * @param path   the path
@@ -158,6 +205,19 @@ public final class Spark {
      */
     public static void after(String path, Filter filter) {
         getInstance().after(path, filter);
+    }
+
+    /**
+     * Maps an array of filters to be executed after any matching routes
+     *
+     * @param path    the path
+     * @param filters The filters
+     */
+
+    public static void after(String path, Filter... filters) {
+        for (Filter filter : filters) {
+            getInstance().after(path, filter);
+        }
     }
 
     //////////////////////////////////////////////////
@@ -265,43 +325,71 @@ public final class Spark {
 
 
     /**
-     * Maps a filter to be executed before any matching routes
+     * Maps one or many filters to be executed before any matching routes
      *
-     * @param filter The filter
+     * @param filters The filters
      */
-    public static void before(Filter filter) {
-        getInstance().before(filter);
+    public static void before(Filter... filters) {
+        for (Filter filter : filters) {
+            getInstance().before(filter);
+        }
     }
 
     /**
-     * Maps a filter to be executed after any matching routes
+     * Maps one or many filters to be executed after any matching routes
      *
-     * @param filter The filter
+     * @param filters The filters
      */
-    public static void after(Filter filter) {
-        getInstance().after(filter);
+    public static void after(Filter... filters) {
+        for (Filter filter : filters) {
+            getInstance().after(filter);
+        }
     }
 
     /**
-     * Maps a filter to be executed before any matching routes
+     * Maps one or many filters to be executed before any matching routes
      *
      * @param path       the path
      * @param acceptType the accept type
-     * @param filter     The filter
+     * @param filters    The filters
      */
-    public static void before(String path, String acceptType, Filter filter) {
-        getInstance().before(path, acceptType, filter);
+    public static void before(String path, String acceptType, Filter... filters) {
+        for (Filter filter : filters) {
+            getInstance().before(path, acceptType, filter);
+        }
     }
 
+
     /**
-     * Maps a filter to be executed after any matching routes
+     * Maps one or many filters to be executed after any matching routes
      *
      * @param path       the path
      * @param acceptType the accept type
-     * @param filter     The filter
+     * @param filters    The filters
      */
-    public static void after(String path, String acceptType, Filter filter) {
-        getInstance().after(path, acceptType, filter);
+    public static void after(String path, String acceptType, Filter... filters) {
+        for (Filter filter : filters) {
+            getInstance().after(path, acceptType, filter);
+        }
+    }
+
+    /**
+     * Execute after route even if the route throws exception
+     *
+     * @param path   the path
+     * @param filter the filter
+     */
+    public static void afterAfter(String path, Filter filter) {
+        getInstance().afterAfter(path, filter);
+    }
+
+    /**
+     * Execute after any matching route even if the route throws exception
+     *
+     * @param filter the filter
+     */
+    public static void afterAfter(Filter filter) {
+        getInstance().afterAfter(filter);
     }
 
     //////////////////////////////////////////////////
@@ -332,9 +420,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void get(String path,
-                                        String acceptType,
-                                        TemplateViewRoute route,
-                                        TemplateEngine engine) {
+                           String acceptType,
+                           TemplateViewRoute route,
+                           TemplateEngine engine) {
         getInstance().get(path, acceptType, route, engine);
     }
 
@@ -358,9 +446,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void post(String path,
-                                         String acceptType,
-                                         TemplateViewRoute route,
-                                         TemplateEngine engine) {
+                            String acceptType,
+                            TemplateViewRoute route,
+                            TemplateEngine engine) {
         getInstance().post(path, acceptType, route, engine);
     }
 
@@ -384,9 +472,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void put(String path,
-                                        String acceptType,
-                                        TemplateViewRoute route,
-                                        TemplateEngine engine) {
+                           String acceptType,
+                           TemplateViewRoute route,
+                           TemplateEngine engine) {
         getInstance().put(path, acceptType, route, engine);
     }
 
@@ -410,9 +498,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void delete(String path,
-                                           String acceptType,
-                                           TemplateViewRoute route,
-                                           TemplateEngine engine) {
+                              String acceptType,
+                              TemplateViewRoute route,
+                              TemplateEngine engine) {
         getInstance().delete(path, acceptType, route, engine);
     }
 
@@ -436,9 +524,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void patch(String path,
-                                          String acceptType,
-                                          TemplateViewRoute route,
-                                          TemplateEngine engine) {
+                             String acceptType,
+                             TemplateViewRoute route,
+                             TemplateEngine engine) {
         getInstance().patch(path, acceptType, route, engine);
     }
 
@@ -462,9 +550,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void head(String path,
-                                         String acceptType,
-                                         TemplateViewRoute route,
-                                         TemplateEngine engine) {
+                            String acceptType,
+                            TemplateViewRoute route,
+                            TemplateEngine engine) {
         getInstance().head(path, acceptType, route, engine);
     }
 
@@ -488,9 +576,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void trace(String path,
-                                          String acceptType,
-                                          TemplateViewRoute route,
-                                          TemplateEngine engine) {
+                             String acceptType,
+                             TemplateViewRoute route,
+                             TemplateEngine engine) {
         getInstance().trace(path, acceptType, route, engine);
     }
 
@@ -514,9 +602,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void connect(String path,
-                                            String acceptType,
-                                            TemplateViewRoute route,
-                                            TemplateEngine engine) {
+                               String acceptType,
+                               TemplateViewRoute route,
+                               TemplateEngine engine) {
         getInstance().connect(path, acceptType, route, engine);
     }
 
@@ -540,9 +628,9 @@ public final class Spark {
      * @param engine     the template engine
      */
     public static void options(String path,
-                                            String acceptType,
-                                            TemplateViewRoute route,
-                                            TemplateEngine engine) {
+                               String acceptType,
+                               TemplateViewRoute route,
+                               TemplateEngine engine) {
         getInstance().options(path, acceptType, route, engine);
     }
 
@@ -643,9 +731,9 @@ public final class Spark {
      * @param transformer the response transformer
      */
     public static void delete(String path,
-                                           String acceptType,
-                                           Route route,
-                                           ResponseTransformer transformer) {
+                              String acceptType,
+                              Route route,
+                              ResponseTransformer transformer) {
         getInstance().delete(path, acceptType, route, transformer);
     }
 
@@ -692,9 +780,9 @@ public final class Spark {
      * @param transformer the response transformer
      */
     public static void connect(String path,
-                                            String acceptType,
-                                            Route route,
-                                            ResponseTransformer transformer) {
+                               String acceptType,
+                               Route route,
+                               ResponseTransformer transformer) {
         getInstance().connect(path, acceptType, route, transformer);
     }
 
@@ -718,9 +806,9 @@ public final class Spark {
      * @param transformer the response transformer
      */
     public static void trace(String path,
-                                          String acceptType,
-                                          Route route,
-                                          ResponseTransformer transformer) {
+                             String acceptType,
+                             Route route,
+                             ResponseTransformer transformer) {
         getInstance().trace(path, acceptType, route, transformer);
     }
 
@@ -744,9 +832,9 @@ public final class Spark {
      * @param transformer the response transformer
      */
     public static void options(String path,
-                                            String acceptType,
-                                            Route route,
-                                            ResponseTransformer transformer) {
+                               String acceptType,
+                               Route route,
+                               ResponseTransformer transformer) {
         getInstance().options(path, acceptType, route, transformer);
     }
 
@@ -770,9 +858,9 @@ public final class Spark {
      * @param transformer the response transformer
      */
     public static void patch(String path,
-                                          String acceptType,
-                                          Route route,
-                                          ResponseTransformer transformer) {
+                             String acceptType,
+                             Route route,
+                             ResponseTransformer transformer) {
         getInstance().patch(path, acceptType, route, transformer);
     }
 
@@ -790,7 +878,7 @@ public final class Spark {
      * @param exceptionClass the exception class
      * @param handler        The handler
      */
-    public static void exception(Class<? extends Exception> exceptionClass, ExceptionHandler handler) {
+    public static <T extends Exception> void exception(Class<T> exceptionClass, ExceptionHandler<? super T> handler) {
         getInstance().exception(exceptionClass, handler);
     }
 
@@ -803,8 +891,8 @@ public final class Spark {
      * NOTE: When using this don't catch exceptions of type HaltException, or if catched, re-throw otherwise
      * halt will not work
      */
-    public static void halt() {
-        getInstance().halt();
+    public static HaltException halt() {
+        throw getInstance().halt();
     }
 
     /**
@@ -814,8 +902,8 @@ public final class Spark {
      *
      * @param status the status code
      */
-    public static void halt(int status) {
-        getInstance().halt(status);
+    public static HaltException halt(int status) {
+        throw getInstance().halt(status);
     }
 
     /**
@@ -825,8 +913,8 @@ public final class Spark {
      *
      * @param body The body content
      */
-    public static void halt(String body) {
-        getInstance().halt(body);
+    public static HaltException halt(String body) {
+        throw getInstance().halt(body);
     }
 
     /**
@@ -837,8 +925,8 @@ public final class Spark {
      * @param status The status code
      * @param body   The body content
      */
-    public static void halt(int status, String body) {
-        getInstance().halt(status, body);
+    public static HaltException halt(int status, String body) {
+        throw getInstance().halt(status, body);
     }
 
     /**
@@ -850,7 +938,7 @@ public final class Spark {
      * @deprecated replaced by {@link #ipAddress(String)}
      */
     public static void setIpAddress(String ipAddress) {
-        getInstance().setIpAddress(ipAddress);
+        getInstance().ipAddress(ipAddress);
     }
 
     /**
@@ -873,7 +961,7 @@ public final class Spark {
      * @deprecated replaced by {@link #port(int)}
      */
     public static void setPort(int port) {
-        getInstance().setPort(port);
+        getInstance().port(port);
     }
 
     /**
@@ -885,6 +973,16 @@ public final class Spark {
      */
     public static void port(int port) {
         getInstance().port(port);
+    }
+
+    /**
+     * Retrieves the port that Spark is listening on.
+     *
+     * @return The port Spark server is listening on.
+     * @throws IllegalStateException when the server is not started
+     */
+    public static int port() {
+        return getInstance().port();
     }
 
     /**
@@ -904,10 +1002,10 @@ public final class Spark {
      * @deprecated replaced by {@link #secure(String, String, String, String)}
      */
     public static void setSecure(String keystoreFile,
-                                              String keystorePassword,
-                                              String truststoreFile,
-                                              String truststorePassword) {
-        getInstance().setSecure(keystoreFile, keystorePassword, truststoreFile, truststorePassword);
+                                 String keystorePassword,
+                                 String truststoreFile,
+                                 String truststorePassword) {
+        getInstance().secure(keystoreFile, keystorePassword, truststoreFile, truststorePassword);
     }
 
     /**
@@ -926,10 +1024,95 @@ public final class Spark {
      * @param truststorePassword the trust store password
      */
     public static void secure(String keystoreFile,
-                                           String keystorePassword,
-                                           String truststoreFile,
-                                           String truststorePassword) {
+                              String keystorePassword,
+                              String truststoreFile,
+                              String truststorePassword) {
         getInstance().secure(keystoreFile, keystorePassword, truststoreFile, truststorePassword);
+    }
+
+    /**
+     * Set the connection to be secure, using the specified keystore and
+     * truststore. This has to be called before any route mapping is done. You
+     * have to supply a keystore file, truststore file is optional (keystore
+     * will be reused).
+     * This method is only relevant when using embedded Jetty servers. It should
+     * not be used if you are using Servlets, where you will need to secure the
+     * connection in the servlet container
+     *
+     * @param keystoreFile       The keystore file location as string
+     * @param keystorePassword   the password for the keystore
+     * @param certAlias          the default certificate Alias
+     * @param truststoreFile     the truststore file location as string, leave null to reuse
+     *                           keystore
+     * @param truststorePassword the trust store password
+     */
+    public static void secure(String keystoreFile,
+                              String keystorePassword,
+                              String certAlias,
+                              String truststoreFile,
+                              String truststorePassword) {
+        getInstance().secure(keystoreFile, keystorePassword, certAlias, truststoreFile, truststorePassword);
+    }
+
+    /**
+     * Overrides default exception handler during initialization phase
+     *
+     * @param initExceptionHandler The custom init exception handler
+     */
+    public static void initExceptionHandler(Consumer<Exception> initExceptionHandler) {
+        getInstance().initExceptionHandler(initExceptionHandler);
+    }
+     
+    /** 
+     * Set the connection to be secure, using the specified keystore and
+     * truststore. This has to be called before any route mapping is done. You
+     * have to supply a keystore file, truststore file is optional (keystore
+     * will be reused).
+     * This method is only relevant when using embedded Jetty servers. It should
+     * not be used if you are using Servlets, where you will need to secure the
+     * connection in the servlet container
+     *
+     * @param keystoreFile       The keystore file location as string
+     * @param keystorePassword   the password for the keystore
+     * @param truststoreFile     the truststore file location as string, leave null to reuse
+     *                           keystore
+     * @param needsClientCert    Whether to require client certificate to be supplied in
+     *                           request
+     * @param truststorePassword the trust store password
+     */
+    public static void secure(String keystoreFile,
+                              String keystorePassword,
+                              String truststoreFile,
+                              String truststorePassword,
+                              boolean needsClientCert) {
+        getInstance().secure(keystoreFile, keystorePassword, truststoreFile, truststorePassword, needsClientCert);
+    }
+
+    /**
+     * Set the connection to be secure, using the specified keystore and
+     * truststore. This has to be called before any route mapping is done. You
+     * have to supply a keystore file, truststore file is optional (keystore
+     * will be reused).
+     * This method is only relevant when using embedded Jetty servers. It should
+     * not be used if you are using Servlets, where you will need to secure the
+     * connection in the servlet container
+     *
+     * @param keystoreFile       The keystore file location as string
+     * @param keystorePassword   the password for the keystore
+     * @param certAlias          the default certificate Alias
+     * @param truststoreFile     the truststore file location as string, leave null to reuse
+     *                           keystore
+     * @param needsClientCert    Whether to require client certificate to be supplied in
+     *                           request
+     * @param truststorePassword the trust store password
+     */
+    public static void secure(String keystoreFile,
+                              String keystorePassword,
+                              String certAlias,
+                              String truststoreFile,
+                              String truststorePassword,
+                              boolean needsClientCert) {
+        getInstance().secure(keystoreFile, keystorePassword, certAlias, truststoreFile, truststorePassword, needsClientCert);
     }
 
     /**
@@ -955,6 +1138,8 @@ public final class Spark {
     /**
      * Sets the folder in classpath serving static files. Observe: this method
      * must be called before all other methods.
+     * -
+     * Note: contemplate changing tonew static files paradigm {@link spark.Service.StaticFiles}
      *
      * @param folder the folder in classpath.
      */
@@ -965,6 +1150,8 @@ public final class Spark {
     /**
      * Sets the external folder serving static files. <b>Observe: this method
      * must be called before all other methods.</b>
+     * -
+     * Note: contemplate use of new static files paradigm {@link spark.Service.StaticFiles}
      *
      * @param externalFolder the external folder serving static files.
      */
@@ -1002,6 +1189,10 @@ public final class Spark {
         getInstance().webSocket(path, handler);
     }
 
+    public static void webSocket(String path, Object handler) {
+        getInstance().webSocket(path, handler);
+    }
+
     /**
      * Sets the max idle timeout in milliseconds for WebSocket connections.
      *
@@ -1009,6 +1200,34 @@ public final class Spark {
      */
     public static void webSocketIdleTimeoutMillis(int timeoutMillis) {
         getInstance().webSocketIdleTimeoutMillis(timeoutMillis);
+    }
+
+    /**
+     * Maps 404 Not Found errors to the provided custom page
+     */
+    public static void notFound(String page) {
+        getInstance().notFound(page);
+    }
+
+    /**
+     * Maps 500 internal server errors to the provided custom page
+     */
+    public static void internalServerError(String page) {
+        getInstance().internalServerError(page);
+    }
+
+    /**
+     * Maps 404 Not Found errors to the provided route.
+     */
+    public static void notFound(Route route) {
+        getInstance().notFound(route);
+    }
+
+    /**
+     * Maps 500 internal server errors to the provided route.
+     */
+    public static void internalServerError(Route route) {
+        getInstance().internalServerError(route);
     }
 
     /**
@@ -1027,6 +1246,13 @@ public final class Spark {
      */
     public static ModelAndView modelAndView(Object model, String viewName) {
         return new ModelAndView(model, viewName);
+    }
+
+    /**
+     * @return The approximate number of currently active threads in the embedded Jetty server
+     */
+    public static int activeThreadCount() {
+        return getInstance().activeThreadCount();
     }
 
 }

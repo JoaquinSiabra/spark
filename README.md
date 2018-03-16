@@ -1,33 +1,43 @@
-Spark - a Sinatra inspired web framework
+[![](https://img.shields.io/travis/perwendel/spark.svg)](https://travis-ci.org/perwendel/spark)
+[![](https://img.shields.io/github/license/perwendel/spark.svg)](./LICENSE)
+[![](https://img.shields.io/maven-central/v/com.sparkjava/spark-core.svg)](http://mvnrepository.com/artifact/com.sparkjava/spark-core)
+
+Spark - a tiny web framework for Java 8
 ==============================================
 
-For more detailed documentation please go to: http://sparkjava.com
-
-NEWS: Spark 2.3 is now available on Maven central! :
-
+**NEWS**: Spark 2.7.1 is out. Please try it out and report any bugs.
 ```xml
-    <dependency>
-        <groupId>com.sparkjava</groupId>
-        <artifactId>spark-core</artifactId>
-        <version>2.3</version>
-    </dependency>
+<dependency>
+    <groupId>com.sparkjava</groupId>
+    <artifactId>spark-core</artifactId>
+    <version>2.7.1</version>
+</dependency>
 ```
 
-NEWS: Spark google group created:
-https://groups.google.com/d/forum/sparkjava
+Important - There is a vulnerability in older versions of Spark (versions lower than 2.5.2). Please upgrade to the latest version.
 
-Temporary API Docs: http://spark.screenisland.com
+For documentation please go to: http://sparkjava.com/documentation
+
+For usage questions, please use [stack overflow with the “spark-java” tag](http://stackoverflow.com/questions/tagged/spark-java) 
+
+Javadoc: http://javadoc.io/doc/com.sparkjava/spark-core
 
 Getting started
 ---------------
+
+```xml
+<dependency>
+    <groupId>com.sparkjava</groupId>
+    <artifactId>spark-core</artifactId>
+    <version>2.7.1</version>
+</dependency>
+```
 
 ```java
 import static spark.Spark.*;
 
 public class HelloWorld {
-
     public static void main(String[] args) {
-
         get("/hello", (request, response) -> "Hello World!");
     }
 }
@@ -35,11 +45,10 @@ public class HelloWorld {
 
 View at: http://localhost:4567/hello
 
-More documentation is on the way!
 
 Check out and try the examples in the source code.
 You can also check out the javadoc. After getting the source from
-github run: 
+[github](https://github.com/perwendel/spark) run: 
 
     mvn javadoc:javadoc
 
@@ -60,7 +69,7 @@ public class SimpleExample {
 
     public static void main(String[] args) {
 
-        //  port(5678); <- Uncomment this if you want spark to listen on a port different than 4567
+        //  port(5678); <- Uncomment this if you want spark to listen to port 5678 instead of the default 4567
 
         get("/hello", (request, response) -> "Hello World!");
 
@@ -98,7 +107,7 @@ public class SimpleExample {
 
 -------------------------------
 
-A simple CRUD example showing howto create, get, update and delete book resources
+A simple CRUD example showing how to create, get, update and delete book resources
 
 ```java
 import static spark.Spark.*;
@@ -108,7 +117,7 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * A simple CRUD example showing howto create, get, update and delete book resources.
+ * A simple CRUD example showing how to create, get, update and delete book resources.
  */
 public class Books {
 
@@ -121,7 +130,8 @@ public class Books {
         final Random random = new Random();
 
         // Creates a new book resource, will return the ID to the created resource
-        // author and title are sent as query parameters e.g. /books?author=Foo&title=Bar
+        // author and title are sent in the post body as x-www-urlencoded values e.g. author=Foo&title=Bar
+        // you get them by using request.queryParams("valuename")
         post("/books", (request, response) -> {
             String author = request.queryParams("author");
             String title = request.queryParams("title");
@@ -146,7 +156,8 @@ public class Books {
         });
 
         // Updates the book resource for the provided id with new information
-        // author and title are sent as query parameters e.g. /books/<id>?author=Foo&title=Bar
+        // author and title are sent in the request body as x-www-urlencoded values e.g. author=Foo&title=Bar
+        // you get them by using request.queryParams("valuename")
         put("/books/:id", (request, response) -> {
             String id = request.params(":id");
             Book book = books.get(id);
@@ -178,7 +189,7 @@ public class Books {
             }
         });
 
-        // Gets all available book resources (id's)
+        // Gets all available book resources (ids)
         get("/books", (request, response) -> {
             String ids = "";
             for (String id : books.keySet()) {
@@ -227,7 +238,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Example showing a very simple (and stupid) autentication filter that is
+ * Example showing a very simple (and stupid) authentication filter that is
  * executed before all other resources.
  *
  * When requesting the resource with e.g.
@@ -265,6 +276,10 @@ public class FilterExample {
         get("/hello", (request, response) -> "Hello World!");
 
         after("/hello", (request, response) -> response.header("spark", "added by after-filter"));
+
+        afterAfter("/hello", (request, response) -> response.header("finally", "executed even if exception is throw"));
+
+        afterAfter((request, response) -> response.header("finally", "executed after any route even if exception is throw"));
     }
 }
 ```
@@ -345,9 +360,9 @@ public class JsonAcceptTypeExample {
 ```
 ---------------------------------
 
-Example showing how to render a view from a template. Note that we are using ModelAndView class for setting the object and name/location of template. 
+Example showing how to render a view from a template. Note that we are using `ModelAndView` class for setting the object and name/location of template. 
 
-First of all we define a class which handles and renders output depending on template engine used. In this case FreeMarker.
+First of all we define a class which handles and renders output depending on template engine used. In this case [FreeMarker](http://freemarker.incubator.apache.org/).
 
 
 ```java
@@ -383,7 +398,7 @@ public class FreeMarkerTemplateEngine extends TemplateEngine {
 }
 ```
 
-Then we can use it to generate our content. Note how we are setting model data and view name. Because we are using FreeMarker, in this case a Map and the name of the template is required:
+Then we can use it to generate our content. Note how we are setting model data and view name. Because we are using FreeMarker, in this case a `Map` and the name of the template is required:
 
 ```java
 public class FreeMarkerExample {
@@ -396,7 +411,7 @@ public class FreeMarkerExample {
 
             // The hello.ftl file is located in directory:
             // src/test/resources/spark/examples/templateview/freemarker
-            return new ModelAndView(attributes, "hello.ftl");
+            return modelAndView(attributes, "hello.ftl");
         }, new FreeMarkerTemplateEngine());
     }
 }
@@ -432,3 +447,7 @@ public class TransformerExample {
     }
 }
 ```
+
+Debugging
+------------------
+See [Spark-debug-tools](https://github.com/perwendel/spark-debug-tools) as a separate module.
